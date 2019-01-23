@@ -1,0 +1,250 @@
+---
+title: "hw1_lm"
+author: "Anna Roser"
+date: "January 22, 2019"
+output: html_document
+---
+
+
+```{r setup1, include=FALSE}
+
+#note to self for rmarkdown: do not change working directory or set working directory in code chunks--it has already been set when rmd file is created. 
+
+#from ?knitr::knit
+
+#"It is not recommended to change the working directory via setwd() in a code chunk, because it may lead to terrible consequences (e.g. figure and cache files may be written to wrong places). If you do use setwd(), please note that knitr will always restore the working directory to the original one. Whenever you feel confused, print getwd() in a code chunk to see what the working directory really is""
+
+```
+
+
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+library(fitdistrplus)
+library(grDevices)
+library(knitr)
+
+```
+
+## Question 1: Math and LSD 
+###A) What level of LSD tissue concentration do you need to ensure a test score of >85%?
+
+Solve 85 = 89.12-9.01x
+
+You need a LSD concentration of 0.45g to get >85% score
+
+###B)How well does LSD tissue concentration predict test performance?
+
+For every one gram of LSD ingested, the participants score drops by 9.01%
+
+###C)Why might the normal distribution be inappropriate to model these data?
+
+Because we have a small sample size and high variance in the data (6.05)
+
+
+```{r}
+math<-read.csv("math_scores.csv")
+head(math)
+str(math)
+
+#make a model
+modmath<-lm(MATH_score~LSD_concentration, data = math)
+plot(modmath)
+#lm is a function to fit linear models, regression, single stratum analysis of variance and analysis of covariance 
+coef(modmath)
+
+```
+
+###a) Make a scatterplot
+
+```{r}
+
+plot(math$MATH_score~math$LSD_concentration, xlab = "LSD Concentration", ylab = "Math Score")
+curve(89.12-9.01*x, add = T)
+
+```
+
+###b)parameter estimates and 95%CI
+
+```{r}
+coef(modmath)
+confint(modmath)
+
+```
+
+
+###c)calculate R2 or RMSE
+
+```{r}
+r2<-function(y_hat, y) {
+  TSS<-sum((y-mean(y))^2)
+  RSS<-sum((y-y_hat)^2)
+  return(1-RSS/TSS)
+}
+
+y_hat<-89.12-9.01*math$LSD_concentration
+
+r2(y_hat, math$MATH_score)
+
+rmse=function(y_hat,y){
+  return(sqrt(mean((y-y_hat)^2)))
+}
+
+rmse(y_hat, math$MATH_score)
+
+```
+
+
+##Question 2: POM miracle food
+
+###With the least squares output in mind, do you agree or disagree with the miracle claim?
+
+No, I do not agree with this miracle cure because the confidence interval for weight change crosses zero, which means that the amount of poms per day cannot be said to significantly increase weight loss.  
+
+
+```{r}
+food<-read.csv("miracle_food.csv")
+head(food)
+str(food)
+
+#make a model
+modfood<-lm(Weight_loss~pomegranate, data = food)
+plot(modfood)
+#lm is a function to fit linear models, regression, single stratum analysis of variance and analysis of covariance 
+
+```
+
+###a)Scatterplot
+
+```{r}
+plot(food$Weight_loss~food$pomegranate, xlab = "Poms per day", ylab = "Weight loss (lbs)")
+curve(-0.178-0.525*x, add = T)
+```
+
+###b)parameter estimates and CI-95
+
+```{r}
+coef(modfood)
+confint(modfood)
+```
+
+###c)R2 and RMSE
+
+```{r}
+
+y_hat1<- -0.178-0.525*food$pomegranate
+
+r2(y_hat1, food$Weight_loss)
+
+rmse(y_hat1, food$Weight_loss)
+
+```
+
+
+##Question 3: Mean Absolute Error
+###A) Translate the mathematical equation for MAE into a function in R.
+```{r}
+MAE<-function(y,x) {
+ temp_lm<-lm(y~x)
+ int <- coef(temp_lm)[1]
+ slope <- coef(temp_lm)[2]
+  y_hat<-int+slope*x
+  n <- length(y)
+  arss<-sum(abs(y-y_hat), na.rm = T)/n
+  return(arss)
+}
+
+```
+
+###B) Compare RMSE, R2, and MAE for the linear models in questions 1 and 2. How do these metrics of model fit differ?
+
+R2 is the coefficient of determination which measures the proportion of total variation explained by the model. RMSE is the squared difference between values estimated by the model and observed values--it is a measure of error (it is scale dependent and effected by large numbers).Mean Absolute Error is the average absolute difference between predicted values and observed, true values and is reported in the same scale as the data was measured.  
+
+LSD and Math:
+  R2: 0.877
+  RMSE: 6.022
+  MAE: 4.89
+
+Poms and Weight:
+  R2: 0.008
+  RMSE: 9.96
+  MAE: 7.98
+
+Side note from Josh: if RMSE ~= MAE then you have many, small errors. If RMSE ~= MAE^2 then you have a few large errors
+
+```{r}
+#MAE for food and math
+MAE(food$Weight_loss,food$pomegranate)
+MAE(math$MATH_score,math$LSD_concentration)
+
+```
+
+##Question 4: Simulate Linear Data
+
+```{r}
+###Step 1###
+#generate predictor variable and data 
+food_qual<-runif(100)
+
+###Step 2###
+#create slope, intercept, and sigma
+slope<-2.5
+intercept<-8
+
+###Step 3###
+#use rnorm
+cat_weight<-rnorm(n= 100, mean=intercept+slope*food_qual, sd=0.2)
+
+#a
+plot(cat_weight~food_qual, xlab = "Food Quality (fat%)", ylab = "Cat Weight (lbs)")
+
+#b
+catmod<-lm(cat_weight~food_qual)
+coef(catmod)
+
+#c How do your estimates compare to the true values you came up with in step 2?
+# The estimates were very close
+curve(8+2.5*x, add = T, col= "seagreen")   #true values
+curve(8.032+2.475*x, add = T, col= "orange")  #estimated parameters
+```
+
+##Question 5: Simulate Unequal Variance
+###B
+When turtles recieve larger doses of LSD, individual responses begin to vary more because the drug interacts with the brain chemical of each turtle differently. As a result, at higher doses, some turtles may be more excited and move faster while others feel more serene and move more slowly. 
+
+```{r}
+###Step 1###
+#generate predictor variable and data 
+lsd_dose<-runif(100)
+
+###Step 2###
+#create slope, intercept, and sigma
+slope1<-3
+intercept1<-15
+
+###Step 3###
+#use rnorm
+turtle_spd<-rnorm(n= 100, mean=intercept+slope*lsd_dose, sd=0.5*lsd_dose)
+
+#a
+plot(turtle_spd~lsd_dose, xlab = "LSD Dose (mg)", ylab = "Turtle Speed (cm/s)")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
